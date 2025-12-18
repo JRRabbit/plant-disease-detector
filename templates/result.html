@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}识别结果{% endblock %}
+
+{% block extra_css %}
+<style>
+    .result-page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .page-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        color: #2d6a4f;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* 图片部分 */
+    .image-section {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .image-wrapper {
+        position: relative;
+        background: #f8f9fa;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .result-image {
+        max-width: 100%;
+        max-height: 400px;
+        object-fit: contain;
+        border-radius: 10px;
+    }
+
+    /* 识别结果卡片 */
+    .result-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .result-header {
+        text-align: center;
+        padding-bottom: 1.5rem;
+        border-bottom: 3px solid #e9ecef;
+        margin-bottom: 2rem;
+    }
+
+    .disease-name-cn {
+        font-size: 2rem;
+        color: #2d6a4f;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .disease-name-en {
+        color: #888;
+        font-size: 1rem;
+        font-style: italic;
+        margin-bottom: 1rem;
+    }
+
+    .category-tag {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .category-fungal { background: #e8f5e9; color: #2e7d32; }
+    .category-bacterial { background: #fff3e0; color: #ef6c00; }
+    .category-viral { background: #fce4ec; color: #c2185b; }
+    .category-pest { background: #e3f2fd; color: #1565c0; }
+    .category-healthy { background: #e0f2f1; color: #00796b; }
+
+    /* 置信度部分 */
+    .confidence-section {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2rem;
+        padding: 2rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        margin-bottom: 2rem;
+    }
+
+    .confidence-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .confidence-circle small {
+        font-size: 0.8rem;
+        font-weight: normal;
+        margin-top: 0.3rem;
+    }
+
+    .confidence-high { background: linear-gradient(135deg, #28a745, #20c997); }
+    .confidence-medium { background: linear-gradient(135deg, #ffc107, #fd7e14); }
+    .confidence-low { background: linear-gradient(135deg, #dc3545, #e83e8c); }
+
+    .confidence-text {
+        text-align: left;
+    }
+
+    .confidence-label {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .confidence-hint {
+        font-size: 1rem;
+        color: #666;
+    }
+
+    /* 信息卡片网格 */
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .info-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 5px solid #2d6a4f;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .info-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .info-card h4 {
+        color: #2d6a4f;
+        margin-bottom: 0.8rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-card p {
+        color: #555;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin: 0;
+        white-space: pre-line;
+    }
+
+    .info-card-full {
+        grid-column: 1 / -1;
+    }
+
+    .pesticide-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.8rem;
+    }
+
+    .pesticide-tag {
+        display: inline-block;
+        background: #e3f2fd;
+        color: #1565c0;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    /* Top5 部分 */
+    .top5-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .top5-title {
+        color: #2d6a4f;
+        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+        text-align: center;
+    }
+
+    .top5-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .top5-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        transition: all 0.2s;
+    }
+
+    .top5-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+
+    .top5-item:first-child {
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border: 2px solid #4caf50;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+    }
+
+    .top5-rank {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: #2d6a4f;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .top5-item:first-child .top5-rank {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .top5-name {
+        flex: 1;
+    }
+
+    .top5-name-cn {
+        font-weight: 600;
+        color: #333;
+        font-size: 1rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .top5-name-en {
+        font-size: 0.8rem;
+        color: #888;
+    }
+
+    .top5-conf {
+        font-weight: bold;
+        color: #2d6a4f;
+        font-size: 1.1rem;
+        margin-left: 1rem;
+    }
+
+    /* 操作按钮 */
+    .action-section {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .action-section .btn {
+        flex: 1;
+        max-width: 200px;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+        .confidence-section {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .confidence-text {
+            text-align: center;
+        }
+
+        .disease-name-cn {
+            font-size: 1.5rem;
+        }
+
+        .action-section {
+            flex-direction: column;
+        }
+
+        .action-section .btn {
+            max-width: 100%;
+        }
+    }
+    .comments-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    .comments-title {
+        color: #2d6a4f;
+        margin-bottom: 1rem;
+        font-size: 1.3rem;
+        text-align: center;
+    }
+    .comment-item {
+        border-bottom: 1px solid #eee;
+        padding: 1rem 0;
+    }
+    .comment-meta {
+        color: #777;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    .comment-content {
+        color: #333;
+        white-space: pre-line;
+        line-height: 1.6;
+    }
+    .comment-form textarea {
+        width: 100%;
+        min-height: 100px;
+        resize: vertical;
+        padding: 0.8rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    .comment-form .actions {
+        text-align: right;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="result-page">
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h1 class="page-title">🔬 识别结果</h1>
+    </div>
+
+    <!-- 上传的图片 -->
+    <div class="image-section">
+        <div class="image-wrapper">
+            <img src="{{ url_for('static', filename=image_path) }}" 
+                 alt="上传的植物图片"
+                 class="result-image"
+                 onerror="this.src='{{ url_for('static', filename='images/no-image.png') }}'">
+        </div>
+    </div>
+
+    <!-- 识别结果 -->
+    <div class="result-section">
+        <div class="result-header">
+            <div class="disease-name-cn">🌿 {{ result.disease_cn or result.disease }}</div>
+            <div class="disease-name-en">{{ result.disease }}</div>
+            
+            {% if result.info %}
+                {% set category = result.info.category %}
+                <span class="category-tag 
+                    {% if '真菌' in category %}category-fungal
+                    {% elif '细菌' in category %}category-bacterial
+                    {% elif '病毒' in category %}category-viral
+                    {% elif '虫' in category %}category-pest
+                    {% elif '健康' in category %}category-healthy
+                    {% else %}category-fungal{% endif %}">
+                    {{ category }}
+                </span>
+            {% endif %}
+        </div>
+
+        <!-- 置信度 -->
+        <div class="confidence-section">
+            <div class="confidence-circle 
+                {% if result.confidence >= 80 %}confidence-high
+                {% elif result.confidence >= 60 %}confidence-medium
+                {% else %}confidence-low{% endif %}">
+                <div>{{ result.confidence }}%</div>
+                <small>置信度</small>
+            </div>
+            <div class="confidence-text">
+                <div class="confidence-label">识别可信度</div>
+                <div class="confidence-hint">
+                    {% if result.confidence >= 80 %}
+                        ✅ 可信度高，识别结果可靠
+                    {% elif result.confidence >= 60 %}
+                        ⚠️ 可信度中等，建议结合实际情况判断
+                    {% else %}
+                        ❗ 可信度较低，建议重新拍照或咨询专家
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细信息网格 -->
+        {% if result.info %}
+        <div class="info-grid">
+            {% if result.info.symptoms and result.info.symptoms != '暂无详细信息，请咨询当地农业技术人员。' %}
+            <div class="info-card">
+                <h4>🔍 症状特征</h4>
+                <p>{{ result.info.symptoms }}</p>
+            </div>
+            {% endif %}
+            
+            {% if result.info.cause and result.info.cause != '-' and result.info.cause != '暂无详细信息。' and result.info.cause != '无病害' %}
+            <div class="info-card">
+                <h4>🦠 发病原因</h4>
+                <p>{{ result.info.cause }}</p>
+            </div>
+            {% endif %}
+            
+            {% if result.info.prevention and result.info.prevention != '-' %}
+            <div class="info-card {% if result.info.treatment == '-' or result.info.treatment == '无需治疗' %}info-card-full{% endif %}">
+                <h4>🛡️ 预防措施</h4>
+                <p>{{ result.info.prevention }}</p>
+            </div>
+            {% endif %}
+            
+            {% if result.info.treatment and result.info.treatment != '-' and result.info.treatment != '无需治疗' %}
+            <div class="info-card">
+                <h4>💊 治疗方法</h4>
+                <p>{{ result.info.treatment }}</p>
+            </div>
+            {% endif %}
+            
+            {% if result.info.pesticides and result.info.pesticides != '-' and result.info.pesticides != '无需用药' and result.info.pesticides != '请咨询当地农技部门' %}
+            <div class="info-card info-card-full">
+                <h4>🧪 推荐农药</h4>
+                <div class="pesticide-tags">
+                    {% for pesticide in result.info.pesticides.split('、') %}
+                        <span class="pesticide-tag">{{ pesticide.strip() }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="comments-section">
+        <h4 class="comments-title">💬 评论区</h4>
+        {% if comments and comments|length > 0 %}
+            <div class="comments-list">
+                {% for c in comments %}
+                    <div class="comment-item">
+                        <div class="comment-meta">
+                            {{ c.user.username if c.user else '匿名' }} · {{ c.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                        <div class="comment-content">{{ c.content }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="text-align:center; color:#777; margin-bottom:1rem;">还没有评论，快来抢第一条吧</p>
+        {% endif %}
+        {% if 'user_id' in session %}
+        <form class="comment-form" method="POST" action="{{ url_for('add_comment', disease=result.disease) }}">
+            <input type="hidden" name="next" value="{{ url_for('history_detail', id=history_id) if history_id else url_for('history', keyword=result.disease) }}">
+            <textarea name="content" placeholder="发表你的见解或经验"></textarea>
+            <div class="actions">
+                <button type="submit" class="btn">发布评论</button>
+            </div>
+        </form>
+        {% else %}
+            <p style="text-align:center; color:#777;">请先登录后再发表评论</p>
+        {% endif %}
+    </div>
+
+    <!-- Top5 预测结果 -->
+    {% if result.top5 and result.top5|length > 1 %}
+    <div class="top5-section">
+        <h4 class="top5-title">📊 其他可能的识别结果</h4>
+        <div class="top5-list">
+            {% for item in result.top5 %}
+            <div class="top5-item">
+                <div class="top5-rank">{{ loop.index }}</div>
+                <div class="top5-name">
+                    <div class="top5-name-cn">{{ item.name_cn or item.name_en }}</div>
+                    <div class="top5-name-en">{{ item.name_en }}</div>
+                </div>
+                <div class="top5-conf">{{ item.confidence }}%</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 操作按钮 -->
+    <div class="action-section">
+        <a href="{{ url_for('dashboard') }}" class="btn">📷 继续识别</a>
+        <a href="{{ url_for('history') }}" class="btn btn-secondary">📋 查看历史</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.onload = function() {
+        // 页面淡入动画
+        const sections = document.querySelectorAll('.image-section, .result-section, .top5-section');
+        sections.forEach((section, index) => {
+            section.style.opacity = '0';
+            section.style.transform = 'translateY(30px)';
+            section.style.transition = 'all 0.6s ease';
+            
+            setTimeout(() => {
+                section.style.opacity = '1';
+                section.style.transform = 'translateY(0)';
+            }, 100 * (index + 1));
+        });
+    };
+</script>
+{% endblock %}

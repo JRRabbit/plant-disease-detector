@@ -1,0 +1,7 @@
+Flask>=2.2
+Flask-SQLAlchemy>=3.0
+gunicorn>=21.2
+numpy>=1.24
+ultralytics>=8.2
+requests>=2.31
+Werkzeug>=2.2

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}管理员控制台{% endblock %}
+{% block content %}
+<div class="container" style="margin-top: 2rem;">
+    <div class="card">
+        <h2 style="color:#2d6a4f;">管理员控制台</h2>
+        <p style="color:#555; margin-top:0.5rem;">欢迎，{{ admin_username }}</p>
+        <div style="margin-top:1rem;">
+            <strong>注册用户总数：</strong> {{ total }}
+        </div>
+    </div>
+    <div class="card">
+        <h3 style="color:#2d6a4f; margin-bottom:1rem;">用户列表</h3>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background:#f0f3ef;">
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">ID</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">用户名</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">注册时间</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">识别次数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.id }}</td>
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.username }}</td>
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ (u.history|length) if u.history else 0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="action-section" style="margin-top:1rem;">
+        <a href="{{ url_for('dashboard') }}" class="btn">返回用户首页</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">退出登录</a>
+    </div>
+{% endblock %}

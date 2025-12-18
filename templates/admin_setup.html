@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}初始化管理员{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 520px; margin-top: 2rem;">
+    <div class="card">
+        <h2 style="text-align:center; color:#2d6a4f; margin-bottom:1.5rem;">初始化管理员</h2>
+        <form method="POST" action="{{ url_for('admin_setup') }}">
+            {% if need_token %}
+            <div class="form-group">
+                <label>设置令牌</label>
+                <input type="text" name="token" placeholder="请输入管理员设置令牌" required>
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label>管理员用户名</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" name="confirm_password" required>
+            </div>
+            <div style="text-align:center; margin-top:1rem;">
+                <button class="btn" type="submit">创建管理员</button>
+                <a class="btn btn-secondary" style="margin-left:1rem;" href="{{ url_for('home') }}">返回</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

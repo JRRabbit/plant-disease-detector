@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}首页{% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .welcome-title {
+        color: #2d6a4f;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-subtitle {
+        color: #666;
+        font-size: 1rem;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    @media (min-width: 992px) {
+        .dashboard-grid {
+            grid-template-columns: 3fr 2fr;
+        }
+    }
+
+    /* 左侧区域 */
+    .left-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* 上传区域卡片 */
+    .upload-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .upload-card h2 {
+        color: #2d6a4f;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .upload-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .upload-area {
+        border: 3px dashed #ccc;
+        border-radius: 15px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #fafafa;
+    }
+    
+    .upload-area:hover {
+        border-color: #2d6a4f;
+        background: #f0f7f4;
+    }
+
+    .upload-area.has-image {
+        padding: 1.5rem;
+        border-style: solid;
+        border-color: #2d6a4f;
+        background: #f0f7f4;
+    }
+
+    .upload-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .upload-text h3 {
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .upload-text p {
+        color: #888;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* 图片预览区域 */
+    .preview-container {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .preview-container.show {
+        display: flex;
+    }
+
+    .preview-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        background: #f8f9fa;
+    }
+
+    .preview-image {
+        width: 100%;
+        max-height: 350px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .preview-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-remove {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background 0.2s;
+    }
+
+    .btn-remove:hover {
+        background: #c82333;
+    }
+
+    .btn-submit {
+        padding: 0.8rem 2.5rem;
+        font-size: 1.1rem;
+    }
+
+    /* 上传提示隐藏 */
+    .upload-hint {
+        transition: all 0.3s;
+    }
+
+    .upload-hint.hide {
+        display: none;
+    }
+
+    /* 功能卡片区域 */
+    .features-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .feature-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-icon {
+        font-size: 2.5rem;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+        border-radius: 15px;
+    }
+
+    .feature-title {
+        font-size: 1.2rem;
+        color: #2d6a4f;
+        margin: 0;
+    }
+
+    .feature-desc {
+        color: #666;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .feature-card .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* 状态提示 */
+    .status-card {
+        background: linear-gradient(135deg, #2d6a4f, #40916c);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .status-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.1rem;
+    }
+
+    .status-card p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .status-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* 模型警告 */
+    .model-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .model-warning-icon {
+        font-size: 1.5rem;
+    }
+
+    .model-warning-text {
+        color: #856404;
+        font-size: 0.9rem;
+    }
+
+    /* 拖拽上传样式 */
+    .upload-area.dragover {
+        border-color: #2d6a4f;
+        background: #e8f5e9;
+        transform: scale(1.02);
+    }
+
+    /* 使用提示列表 */
+    .tips-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .tips-list li {
+        padding: 0.5rem 0;
+        color: #555;
+        font-size: 0.95rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .tips-list li:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 欢迎标题 -->
+<div class="welcome-header">
+    <h1 class="welcome-title">👋 欢迎回来，{{ username }}！</h1>
+    <p class="welcome-subtitle">上传植物叶片图片，智能识别病虫害</p>
+</div>
+
+<div class="dashboard-grid">
+    <!-- 左侧：上传区域 + 使用提示 -->
+    <div class="left-section">
+        <!-- 上传卡片 -->
+        <div class="upload-card">
+            <h2>🔬 病虫害识别</h2>
+            
+            {% if not model_loaded %}
+            <div class="model-warning">
+                <span class="model-warning-icon">⚠️</span>
+                <span class="model-warning-text">模型加载失败，请检查模型文件是否存在</span>
+            </div>
+            {% endif %}
+            
+            <form id="uploadForm" method="POST" action="{{ url_for('detect') }}" enctype="multipart/form-data">
+                <div class="upload-container">
+                    <!-- 上传区域 -->
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                        <div class="upload-hint" id="uploadHint">
+                            <div class="upload-icon">📷</div>
+                            <div class="upload-text">
+                                <h3>点击或拖拽上传图片</h3>
+                                <p>支持 PNG, JPG, JPEG, BMP 格式</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 图片预览 -->
+                        <div class="preview-container" id="previewContainer">
+                            <div class="preview-wrapper">
+                                <img id="imagePreview" class="preview-image" alt="预览图片">
+                            </div>
+                        </div>
+                        
+                        <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;" 
+                               onchange="previewImage(event)">
+                    </div>
+                    
+                    <!-- 操作按钮 -->
+                    <div class="preview-actions" id="previewActions">
+                        <button type="button" class="btn-remove" onclick="removeImage(event)">
+                            🗑️ 重新选择
+                        </button>
+                        <button type="submit" class="btn btn-submit" {% if not model_loaded %}disabled{% endif %}>
+                            🔍 开始识别
+                        </button>
+                    </div>
+                    
+                    <!-- 未选择图片时的提交按钮 -->
+                    <div id="defaultSubmit" style="text-align: center;">
+                        <button type="submit" class="btn btn-submit" {% if not model_loaded %}disabled{% endif %}>
+                            🔍 开始识别
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 使用提示 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon">💡</div>
+                <h3 class="feature-title">使用提示</h3>
+            </div>
+            <p class="feature-desc">为获得最佳识别效果：</p>
+            <ul class="tips-list">
+                <li>📸 上传清晰的叶片特写图片</li>
+                <li>🔍 确保病斑部位完整可见</li>
+                <li>🌿 尽量只拍摄单片叶子</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- 右侧：功能区域 -->
+    <div class="features-section">
+        <!-- 状态卡片 -->
+        <div class="status-card">
+            <div class="status-icon">{{ '✅' if model_loaded else '❌' }}</div>
+            <h4>系统状态</h4>
+            <p>{{ '模型已加载，可以进行识别' if model_loaded else '模型未加载' }}</p>
+        </div>
+        
+        <!-- 智能识别介绍 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon">🌿</div>
+                <h3 class="feature-title">智能识别</h3>
+            </div>
+            <p class="feature-desc">
+                采用深度学习技术，支持识别 38 种常见农作物病虫害，包括苹果、番茄、马铃薯、玉米、葡萄等作物的多种病害。
+            </p>
+        </div>
+        
+        <!-- 历史记录 -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon">📋</div>
+                <h3 class="feature-title">历史记录</h3>
+            </div>
+            <p class="feature-desc">
+                查看您的所有识别记录，追踪植物健康状况，随时回顾历史诊断结果。
+            </p>
+            <a href="{{ url_for('history') }}" class="btn">
+                📊 查看历史记录
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadHint = document.getElementById('uploadHint');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewActions = document.getElementById('previewActions');
+    const defaultSubmit = document.getElementById('defaultSubmit');
+    const imagePreview = document.getElementById('imagePreview');
+    const imageInput = document.getElementById('imageInput');
+
+    // 图片预览功能
+    function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                
+                // 显示预览，隐藏上传提示
+                uploadHint.classList.add('hide');
+                previewContainer.classList.add('show');
+                uploadArea.classList.add('has-image');
+                
+                // 显示操作按钮，隐藏默认提交
+                previewActions.style.display = 'flex';
+                defaultSubmit.style.display = 'none';
+            }
+            
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // 移除图片
+    function removeImage(event) {
+        event.stopPropagation();
+        
+        // 清空输入
+        imageInput.value = '';
+        imagePreview.src = '';
+        
+        // 恢复上传提示
+        uploadHint.classList.remove('hide');
+        previewContainer.classList.remove('show');
+        uploadArea.classList.remove('has-image');
+        
+        // 隐藏操作按钮，显示默认提交
+        previewActions.style.display = 'none';
+        defaultSubmit.style.display = 'block';
+    }
+
+    // 拖拽上传
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            imageInput.files = files;
+            previewImage({ target: imageInput });
+        }
+    });
+
+    // 表单提交前检查
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        if (!imageInput.files || imageInput.files.length === 0) {
+            e.preventDefault();
+            alert('请先选择一张图片');
+        }
+    });
+
+    // 初始化按钮状态
+    previewActions.style.display = 'none';
+</script>
+{% endblock %}
