@@ -634,11 +634,12 @@ def predict_disease(image_path):
 # ============================================================
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)  # 修复这里
+    id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     history = db.relationship('DetectionHistory', backref='user', lazy=True)
+    comments = db.relationship('Comment', backref='user', lazy=True)
 
 
 class DetectionHistory(db.Model):
@@ -653,6 +654,18 @@ class DetectionHistory(db.Model):
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    disease = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Admin(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     disease_name = db.Column(db.String(100), nullable=False)    # 病虫害英文名
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -662,6 +675,9 @@ class Comment(db.Model):
 # 创建数据库表
 with app.app_context():
     db.create_all()
+
+def get_comments_by_disease(disease):
+    return Comment.query.filter_by(disease=disease).order_by(Comment.created_at.desc()).all()
 
 
 def hash_password(password):
@@ -730,6 +746,59 @@ def dashboard():
         return redirect(url_for('login'))
     return render_template('dashboard.html', username=session['username'], model_loaded=MODEL_LOADED)
 
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = hash_password(request.form.get('password'))
+        admin = Admin.query.filter_by(username=username, password=password).first()
+        if admin:
+            session['admin_id'] = admin.id
+            session['admin_username'] = admin.username
+            flash('管理员登录成功', 'success')
+            return redirect(url_for('admin_dashboard'))
+        flash('管理员账号或密码不正确', 'danger')
+    return render_template('admin_login.html')
+
+@app.route('/admin/setup', methods=['GET', 'POST'])
+def admin_setup():
+    existing = Admin.query.first()
+    if existing:
+        return redirect(url_for('admin_login'))
+    token_required = os.getenv('ADMIN_SETUP_TOKEN')
+    if request.method == 'POST':
+        if token_required:
+            token = request.form.get('token', '')
+            if token != token_required:
+                flash('设置令牌不正确', 'danger')
+                return redirect(url_for('admin_setup'))
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm = request.form.get('confirm_password')
+        if not username or not password or password != confirm:
+            flash('请填写完整且两次密码一致', 'danger')
+            return redirect(url_for('admin_setup'))
+        if Admin.query.filter_by(username=username).first():
+            flash('管理员用户名已存在', 'danger')
+            return redirect(url_for('admin_setup'))
+        admin = Admin(username=username, password=hash_password(password))
+        try:
+            db.session.add(admin)
+            db.session.commit()
+            flash('管理员创建成功，请登录', 'success')
+            return redirect(url_for('admin_login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'danger')
+    return render_template('admin_setup.html', need_token=bool(token_required))
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
+    users = User.query.order_by(User.created_at.desc()).all()
+    total = len(users)
+    return render_template('admin_dashboard.html', admin_username=session.get('admin_username'), users=users, total=total)
 @app.route('/detect', methods=['POST'])
 def detect():
     if 'user_id' not in session:
@@ -802,7 +871,8 @@ def detect():
             flash('检测完成！', 'success')
             return render_template('result.html',
                                    result=result,
-                                   image_path='uploads/' + filename)
+                                   image_path='uploads/' + filename,
+                                   comments=get_comments_by_disease(result['disease']))
         except Exception as e:
             db.session.rollback()
             flash(f'保存记录失败: {str(e)}', 'danger')
@@ -915,7 +985,28 @@ def history_detail(id):
     
     return render_template('result.html',
                            result=result,
-                           image_path='uploads/' + record.image_path)
+                           image_path='uploads/' + record.image_path,
+                           comments=get_comments_by_disease(record.result))
+
+@app.route('/comment', methods=['POST'])
+def add_comment():
+    if 'user_id' not in session:
+        flash('请先登录', 'warning')
+        return redirect(url_for('login'))
+    disease = request.form.get('disease', '').strip()
+    content = request.form.get('content', '').strip()
+    if not disease or not content:
+        flash('评论内容不能为空', 'danger')
+        return redirect(url_for('history', keyword=disease))
+    try:
+        c = Comment(user_id=session['user_id'], disease=disease, content=content)
+        db.session.add(c)
+        db.session.commit()
+        flash('评论已发布', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'发布失败: {str(e)}', 'danger')
+    return redirect(url_for('history', keyword=disease))
 
 @app.route('/add_comment', methods=['POST'])
 def add_comment():
@@ -1006,6 +1097,8 @@ def profile():
 def logout():
     session.pop('user_id', None)
     session.pop('username', None)
+    session.pop('admin_id', None)
+    session.pop('admin_username', None)
     flash('已成功退出登录', 'success')
     return redirect(url_for('login'))
 
