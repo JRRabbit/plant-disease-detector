@@ -650,8 +650,15 @@ class DetectionHistory(db.Model):
     confidence = db.Column(db.Float, nullable=False)
     detected_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    disease_name = db.Column(db.String(100), nullable=False)    # 病虫害英文名
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # 关系 - 这行要在类里面
+    user = db.relationship('User', backref='comments')  # 加上这行  
+    # 正确的拼写
 # 创建数据库表
 with app.app_context():
     db.create_all()
@@ -910,6 +917,44 @@ def history_detail(id):
                            result=result,
                            image_path='uploads/' + record.image_path)
 
+@app.route('/add_comment', methods=['POST'])
+def add_comment():
+    """添加评论"""
+    if 'user_id' not in session:
+        flash('请先登录', 'warning')
+        return redirect(url_for('login'))
+    
+    # 获取表单数据
+    disease = request.form.get('disease')
+    content = request.form.get('content', '').strip()
+    
+    # 验证数据
+    if not disease or not content:
+        flash('请填写评论内容', 'danger')
+        return redirect(request.referrer or url_for('history'))
+    
+    if len(content) > 500:
+        flash('评论内容不能超过500字', 'danger')
+        return redirect(request.referrer or url_for('history'))
+    
+    try:
+        # 创建评论
+        new_comment = Comment(
+            user_id=session['user_id'],
+            disease_name=disease,
+            content=content
+        )
+        
+        db.session.add(new_comment)
+        db.session.commit()
+        flash('评论发布成功！', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'评论发布失败: {str(e)}', 'danger')
+    
+    # 返回来源页面
+    return redirect(request.referrer or url_for('history'))
 
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
