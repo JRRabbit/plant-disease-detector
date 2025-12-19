@@ -6,8 +6,11 @@ from datetime import datetime
 import hashlib
 from werkzeug.utils import secure_filename
 
-# 导入 YOLO
-from ultralytics import YOLO
+# 可选导入 YOLO（云端环境缺失依赖时不阻塞启动）
+try:
+    from ultralytics import YOLO  # type: ignore
+except Exception:
+    YOLO = None
 # ============================================================
 # 病虫害中英文映射表 + 详细资料
 # 共 38 个类别，与你的模型完全对应
@@ -491,8 +494,12 @@ def get_chinese_name(disease_name):
 
 # 初始化Flask应用
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'a_random_secret_key_for_session_management'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agri_disease.db'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_random_secret_key_for_session_management')
+_db_uri = os.getenv('DATABASE_URL', 'sqlite:///agri_disease.db')
+if _db_uri.startswith('sqlite:///') and 'check_same_thread' not in _db_uri:
+    sep = '&' if '?' in _db_uri else '?'
+    _db_uri = f"{_db_uri}{sep}check_same_thread=False"
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
@@ -505,37 +512,40 @@ print(f"✓ 上传文件夹: {os.path.abspath(app.config['UPLOAD_FOLDER'])}")
 db = SQLAlchemy(app)
 
 # 模型相关
-MODEL_PATH = './runs/classify/pest_disease_optimized2/weights/best.pt'
-MODEL_LOADED = True  # ← 添加这一行
+MODEL_PATH = os.getenv('MODEL_PATH', './runs/classify/pest_disease_optimized2/weights/best.pt')
+MODEL_URL = os.getenv('MODEL_URL')
 MODEL_LOADED = False
 model = None
 CLASS_NAMES = {}
 
 
 def load_model():
-    """加载 YOLO 模型"""
+    """加载 YOLO 模型（云端容错：失败时进入演示模式）"""
     global model, MODEL_LOADED, CLASS_NAMES
     try:
-        # 演示模式：创建一个虚拟模型
-        model = "demo_model"  # 标记为演示模型
+        if YOLO is None:
+            raise ImportError("ultralytics not available")
+        if not os.path.exists(MODEL_PATH) and MODEL_URL:
+            import requests
+            os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+            r = requests.get(MODEL_URL, timeout=300)
+            r.raise_for_status()
+            with open(MODEL_PATH, 'wb') as f:
+                f.write(r.content)
+        model = YOLO(MODEL_PATH)
         MODEL_LOADED = True
-        
-        # 创建类别名称映射（从您的数据库）
+        CLASS_NAMES = model.names
+        print(f"✓ 成功加载模型: {MODEL_PATH}")
+        print(f"✓ 检测到 {len(CLASS_NAMES)} 个类别")
+        return model
+    except Exception as e:
+        print(f"✗ 模型加载失败或不可用，启用演示模式: {e}")
+        MODEL_LOADED = True
+        model = "demo_model"
         CLASS_NAMES = {}
         for idx, key in enumerate(DISEASE_DATABASE.keys()):
             CLASS_NAMES[idx] = key
-        
-        print(f"✓ 演示模式已启动")
-        print(f"✓ 可识别 {len(CLASS_NAMES)} 种病虫害")
-        print(f"✓ 注：当前为演示模式，识别结果为示例数据")
         return model
-    except Exception as e:
-        print(f"✗ 模型加载失败: {e}")
-        # 即使失败也设置为演示模式
-        MODEL_LOADED = True
-        model = "demo"
-        CLASS_NAMES = {}
-    return model
 # 加载模型
 model = load_model()
 def predict_disease(image_path):
@@ -663,15 +673,6 @@ class Admin(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    disease_name = db.Column(db.String(100), nullable=False)    # 病虫害英文名
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    # 关系 - 这行要在类里面
-    user = db.relationship('User', backref='comments')  # 加上这行  
-    # 正确的拼写
 # 创建数据库表
 with app.app_context():
     db.create_all()
@@ -988,25 +989,7 @@ def history_detail(id):
                            image_path='uploads/' + record.image_path,
                            comments=get_comments_by_disease(record.result))
 
-@app.route('/comment', methods=['POST'])
-def add_comment():
-    if 'user_id' not in session:
-        flash('请先登录', 'warning')
-        return redirect(url_for('login'))
-    disease = request.form.get('disease', '').strip()
-    content = request.form.get('content', '').strip()
-    if not disease or not content:
-        flash('评论内容不能为空', 'danger')
-        return redirect(url_for('history', keyword=disease))
-    try:
-        c = Comment(user_id=session['user_id'], disease=disease, content=content)
-        db.session.add(c)
-        db.session.commit()
-        flash('评论已发布', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'发布失败: {str(e)}', 'danger')
-    return redirect(url_for('history', keyword=disease))
+ 
 
 @app.route('/add_comment', methods=['POST'])
 def add_comment():
@@ -1029,10 +1012,9 @@ def add_comment():
         return redirect(request.referrer or url_for('history'))
     
     try:
-        # 创建评论
         new_comment = Comment(
             user_id=session['user_id'],
-            disease_name=disease,
+            disease=disease,
             content=content
         )
         
