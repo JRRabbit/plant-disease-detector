@@ -501,8 +501,8 @@
             <p style="text-align:center; color:#777; margin-bottom:1rem;">还没有评论，快来抢第一条吧</p>
         {% endif %}
         {% if 'user_id' in session %}
-        <form class="comment-form" method="POST" action="{{ url_for('add_comment', disease=result.disease) }}">
-            <input type="hidden" name="next" value="{{ url_for('history_detail', id=history_id) if history_id else url_for('history', keyword=result.disease) }}">
+        <form class="comment-form" method="POST" action="{{ url_for('add_comment') }}">
+    <input type="hidden" name="disease" value="{{ result.disease }}">
             <textarea name="content" placeholder="发表你的见解或经验"></textarea>
             <div class="actions">
                 <button type="submit" class="btn">发布评论</button>
