@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import hashlib
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # 可选导入 YOLO（云端环境缺失依赖时不阻塞启动）
 try:
@@ -504,6 +505,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
+# 适配 Render 的反向代理（修复 HTTPS 下的重定向问题）
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 print(f"✓ 上传文件夹: {os.path.abspath(app.config['UPLOAD_FOLDER'])}")
@@ -991,9 +995,13 @@ def history_detail(id):
 
  
 
-@app.route('/add_comment', methods=['POST'])
+@app.route('/add_comment', methods=['GET', 'POST'])
 def add_comment():
     """添加评论"""
+    if request.method == 'GET':
+        # 如果是 GET 请求（可能是重定向导致的），直接返回历史页面
+        return redirect(url_for('history'))
+
     if 'user_id' not in session:
         flash('请先登录', 'warning')
         return redirect(url_for('login'))
