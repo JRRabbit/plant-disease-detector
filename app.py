@@ -1,4 +1,4 @@
-fimport os
+import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import numpy as np
 from flask_sqlalchemy import SQLAlchemy
@@ -692,6 +692,16 @@ def hash_password(password):
 # ============================================================
 # 路由
 # ============================================================
+from functools import wraps
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if 'admin_id' not in session:
+            flash('请先以管理员身份登录', 'warning')
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return wrapper
 
 @app.route('/')
 def home():
@@ -804,7 +814,85 @@ def admin_dashboard():
     users = User.query.order_by(User.created_at.desc()).all()
     total = len(users)
     return render_template('admin_dashboard.html', admin_username=session.get('admin_username'), users=users, total=total)
-@app.route('/detect', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_user(user_id):
+    # 不能删除自己（可选）
+    # if session.get('admin_id') == user_id: ...
+
+    user = User.query.get_or_404(user_id)
+
+    try:
+        # 1) 删除该用户的评论和历史记录（避免外键约束问题）
+        Comment.query.filter_by(user_id=user.id).delete()
+        histories = DetectionHistory.query.filter_by(user_id=user.id).all()
+
+        # 2) 删除图片文件（可选，推荐）
+        for h in histories:
+            img_path = os.path.join(app.config['UPLOAD_FOLDER'], h.image_path)
+            if os.path.exists(img_path):
+                try:
+                    os.remove(img_path)
+                except Exception:
+                    pass
+
+        DetectionHistory.query.filter_by(user_id=user.id).delete()
+
+        # 3) 删除用户
+        db.session.delete(user)
+        db.session.commit()
+
+        flash(f'已删除用户：{user.username}', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'删除失败：{str(e)}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
+@app.route('/admin/users/<int:user_id>/update', methods=['POST'])
+@admin_required
+def admin_update_user(user_id):
+    user = User.query.get_or_404(user_id)
+
+    new_username = request.form.get('username', '').strip()
+    if not new_username:
+        flash('用户名不能为空', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    # 检查重名
+    if User.query.filter(User.username == new_username, User.id != user.id).first():
+        flash('该用户名已存在', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    try:
+        user.username = new_username
+        db.session.commit()
+        flash('用户名修改成功', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'修改失败：{str(e)}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
+@app.route('/admin/users/<int:user_id>/reset_password', methods=['POST'])
+@admin_required
+def admin_reset_password(user_id):
+    user = User.query.get_or_404(user_id)
+
+    new_password = request.form.get('new_password', '').strip()
+    if not new_password or len(new_password) < 6:
+        flash('新密码不能为空且至少6位', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    try:
+        user.password = hash_password(new_password)
+        db.session.commit()
+        flash('密码重置成功', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'重置失败：{str(e)}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/detect',methods=['GET', 'POST'])
 def detect():
     if 'user_id' not in session:
         flash('请先登录', 'warning')
@@ -874,10 +962,11 @@ def detect():
             db.session.add(new_history)
             db.session.commit()
             flash('检测完成！', 'success')
-            return render_template('result.html',
-                                   result=result,
-                                   image_path='uploads/' + filename,
-                                   comments=get_comments_by_disease(result['disease']))
+            return redirect(url_for('result_page', hid=new_history.id))
+            # return render_template('result.html',
+            #                        result=result,
+            #                        image_path='uploads/' + filename,
+            #                        comments=get_comments_by_disease(result['disease']))
         except Exception as e:
             db.session.rollback()
             flash(f'保存记录失败: {str(e)}', 'danger')
@@ -993,49 +1082,68 @@ def history_detail(id):
                            image_path='uploads/' + record.image_path,
                            comments=get_comments_by_disease(record.result))
 
- 
-
-@app.route('/add_comment', methods=['GET', 'POST'])
+@app.route('/add_comment', methods=['POST'])
 def add_comment():
-    """添加评论"""
-    if request.method == 'GET':
-        # 如果是 GET 请求（可能是重定向导致的），直接返回历史页面
-        return redirect(url_for('history'))
-
     if 'user_id' not in session:
         flash('请先登录', 'warning')
         return redirect(url_for('login'))
-    
-    # 获取表单数据
+
+    history_id = request.form.get('history_id', type=int)
     disease = request.form.get('disease')
     content = request.form.get('content', '').strip()
-    
-    # 验证数据
+
+    if not history_id:
+        flash('缺少history_id', 'danger')
+        return redirect(url_for('dashboard'))
+
     if not disease or not content:
         flash('请填写评论内容', 'danger')
-        return redirect(request.referrer or url_for('history'))
-    
+        return redirect(url_for('result_page', hid=history_id))
+
     if len(content) > 500:
         flash('评论内容不能超过500字', 'danger')
-        return redirect(request.referrer or url_for('history'))
-    
+        return redirect(url_for('result_page', hid=history_id))
+
     try:
-        new_comment = Comment(
-            user_id=session['user_id'],
-            disease=disease,
-            content=content
-        )
-        
+        new_comment = Comment(user_id=session['user_id'], disease=disease, content=content)
         db.session.add(new_comment)
         db.session.commit()
         flash('评论发布成功！', 'success')
-        
     except Exception as e:
         db.session.rollback()
         flash(f'评论发布失败: {str(e)}', 'danger')
-    
-    # 返回来源页面
-    return redirect(request.referrer or url_for('history'))
+
+    # ✅ 关键：回到 result GET 页面，相当于刷新 result.html
+    return redirect(url_for('result_page', hid=history_id))
+
+
+@app.route('/result/<int:hid>')
+def result_page(hid):
+    if 'user_id' not in session:
+        flash('请先登录', 'warning')
+        return redirect(url_for('login'))
+
+    record = DetectionHistory.query.filter_by(id=hid, user_id=session['user_id']).first()
+    if not record:
+        flash('记录不存在', 'danger')
+        return redirect(url_for('dashboard'))
+
+    disease_info = get_disease_info(record.result)
+    result = {
+        'disease': record.result,
+        'disease_cn': record.result_cn or disease_info['name_cn'],
+        'confidence': record.confidence,
+        'info': disease_info,
+        'top5': None
+    }
+
+    return render_template(
+        'result.html',
+        result=result,
+        history_id=hid,  # ✅ 关键：把这条记录id传给模板
+        image_path='uploads/' + record.image_path,
+        comments=get_comments_by_disease(record.result)
+    )
 
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
