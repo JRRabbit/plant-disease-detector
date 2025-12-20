@@ -1,4 +1,4 @@
-import os
+fimport os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import numpy as np
 from flask_sqlalchemy import SQLAlchemy
@@ -516,7 +516,7 @@ print(f"✓ 上传文件夹: {os.path.abspath(app.config['UPLOAD_FOLDER'])}")
 db = SQLAlchemy(app)
 
 # 模型相关
-MODEL_PATH = os.getenv('MODEL_PATH', './runs/classify/pest_disease_optimized2/weights/best.pt')
+MODEL_PATH = os.getenv('MODEL_PATH',r'project\runs\classify\pest_disease_optimized2\weights\best.pt')
 MODEL_URL = os.getenv('MODEL_URL')
 MODEL_LOADED = False
 model = None
