@@ -4,15 +4,12 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 1 --threads 8 --timeout 180 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --workers 1 --threads 1 --timeout 300 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
+      - key: MODEL_PATH
+        value: best.pt
       - key: SECRET_KEY
         generateValue: true
-      - key: MODEL_PATH
-        value: runs/classify/pest_disease_optimized2/weights/best.pt
-      # 若模型文件过大无法上传到GitHub，请设置 MODEL_URL
-      # - key: MODEL_URL
-      #   value: https://example.com/best.pt
