@@ -4,13 +4,12 @@ services:
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 1 --threads 8 --timeout 180 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --preload --workers 2 --threads 2 --timeout 600 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
       - key: MODEL_PATH
         value: best.pt
-      # 若无法将模型文件提交到仓库，请设置 MODEL_URL 为可下载的权重地址
-      # - key: MODEL_URL
-      #   value: https://example.com/best.pt
+      - key: SECRET_KEY
+        generateValue: true
