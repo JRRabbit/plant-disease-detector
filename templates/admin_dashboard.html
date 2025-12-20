@@ -1,41 +1,122 @@
 {% extends "base.html" %}
 {% block title %}管理员控制台{% endblock %}
+
 {% block content %}
 <div class="container" style="margin-top: 2rem;">
+    <!-- 顶部统计卡片 -->
     <div class="card">
-        <h2 style="color:#2d6a4f;">管理员控制台</h2>
+        <h2 style="color:#2d6a4f; margin-bottom: 0.2rem;">管理员控制台</h2>
         <p style="color:#555; margin-top:0.5rem;">欢迎，{{ admin_username }}</p>
         <div style="margin-top:1rem;">
             <strong>注册用户总数：</strong> {{ total }}
         </div>
     </div>
+
+    <!-- 用户列表卡片 -->
     <div class="card">
-        <h3 style="color:#2d6a4f; margin-bottom:1rem;">用户列表</h3>
-        <div style="overflow-x:auto;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+            <h3 style="color:#2d6a4f; margin-bottom:0.5rem;">用户列表</h3>
+            <div style="color:#666; font-size: 0.95rem;">
+                提示：可直接改名 / 重置密码 / 删除用户
+            </div>
+        </div>
+
+        <div style="overflow-x:auto; margin-top: 0.6rem;">
             <table style="width:100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background:#f0f3ef;">
-                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">ID</th>
-                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">用户名</th>
-                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">注册时间</th>
-                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd;">识别次数</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd; white-space:nowrap;">ID</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd; white-space:nowrap;">用户名</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd; white-space:nowrap;">注册时间</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd; white-space:nowrap;">识别次数</th>
+                        <th style="text-align:left; padding:0.6rem; border-bottom:1px solid #ddd; white-space:nowrap;">操作</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for u in users %}
                     <tr>
-                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.id }}</td>
-                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.username }}</td>
-                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">{{ (u.history|length) if u.history else 0 }}</td>
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee; white-space:nowrap;">
+                            {{ u.id }}
+                        </td>
+
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">
+                            <div style="display:flex; align-items:center; gap: 0.5rem; flex-wrap: wrap;">
+                                <span style="font-weight:600;">{{ u.username }}</span>
+
+                                <!-- 改名表单 -->
+                                <form action="{{ url_for('admin_update_user', user_id=u.id) }}" method="post"
+                                      style="display:flex; align-items:center; gap: 0.35rem; margin:0;">
+                                    <input name="username"
+                                           value="{{ u.username }}"
+                                           style="width:140px; padding:6px; border:1px solid #ddd; border-radius:6px;"
+                                           title="输入新用户名" />
+                                    <button type="submit" class="btn btn-secondary" style="padding:6px 10px;">
+                                        改名
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee; white-space:nowrap;">
+                            {% if u.created_at %}
+                                {{ u.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee; white-space:nowrap;">
+                            {{ (u.history|length) if u.history else 0 }}
+                        </td>
+
+                        <td style="padding:0.6rem; border-bottom:1px solid #eee;">
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap: wrap;">
+
+                                <!-- 重置密码 -->
+                                <form action="{{ url_for('admin_reset_password', user_id=u.id) }}" method="post"
+                                      style="display:flex; align-items:center; gap:0.35rem; margin:0;">
+                                    <input name="new_password"
+                                           placeholder="新密码(≥6位)"
+                                           style="width:160px; padding:6px; border:1px solid #ddd; border-radius:6px;"
+                                           title="输入新密码（建议至少6位）" />
+                                    <button type="submit" class="btn btn-secondary" style="padding:6px 10px;">
+                                        重置密码
+                                    </button>
+                                </form>
+
+                                <!-- 删除用户 -->
+                                <form action="{{ url_for('admin_delete_user', user_id=u.id) }}" method="post"
+                                      style="margin:0;"
+                                      onsubmit="return confirm('确定要删除用户【{{ u.username }}】吗？\\n此操作不可恢复，并会删除其历史记录与评论！');">
+                                    <button type="submit"
+                                            class="btn"
+                                            style="background:#c0392b; color:#fff; padding:6px 12px; border-radius:8px;">
+                                        删除
+                                    </button>
+                                </form>
+
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
+
+                    {% if not users or users|length == 0 %}
+                    <tr>
+                        <td colspan="5" style="padding:1rem; color:#777;">
+                            暂无用户
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
     </div>
-    <div class="action-section" style="margin-top:1rem;">
+
+    <!-- 底部按钮 -->
+    <div class="action-section" style="margin-top:1rem; display:flex; gap: 0.6rem; flex-wrap: wrap;">
         <a href="{{ url_for('dashboard') }}" class="btn">返回用户首页</a>
         <a href="{{ url_for('logout') }}" class="btn btn-secondary">退出登录</a>
     </div>
+</div>
 {% endblock %}
