@@ -10,7 +10,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.10
       - key: MODEL_PATH
-        value: runs/classify/pest_disease_optimized2/weights/best.pt
+        value: best.pt
       # 若无法将模型文件提交到仓库，请设置 MODEL_URL 为可下载的权重地址
       # - key: MODEL_URL
       #   value: https://example.com/best.pt
