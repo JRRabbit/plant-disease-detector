@@ -4,7 +4,7 @@ services:
     env: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --preload --workers 1 --threads 2 --timeout 600 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --preload --workers 2 --threads 2 --timeout 600 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
