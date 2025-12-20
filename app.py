@@ -962,7 +962,13 @@ def detect():
             db.session.add(new_history)
             db.session.commit()
             flash('检测完成！', 'success')
-            return redirect(url_for('result_page', hid=new_history.id))
+            return render_template(
+                    'result.html',
+                    result=result,  # 这里的 result 是 predict_disease 返回的，包含 top5
+                    history_id=new_history.id,
+                    image_path='uploads/' + filename,
+                    comments=get_comments_by_disease(result['disease'])
+                )
             # return render_template('result.html',
             #                        result=result,
             #                        image_path='uploads/' + filename,
