@@ -4,12 +4,17 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 1 --threads 1 --timeout 300 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --workers 1 --threads 8 --timeout 180 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
-      - key: MODEL_PATH
-        value: best.pt
       - key: SECRET_KEY
         generateValue: true
+      - key: MODEL_PATH
+        value:best.pt
+      # 如果将来需要持久化数据库，可以连接 Render 的 PostgreSQL：
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: your-db-name
+      #     property: connectionString
