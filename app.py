@@ -608,7 +608,7 @@ def predict_disease(image_path):
     # ==================== 真实模型模式 ====================
     # 如果有真实模型，执行真实预测
     try:
-        results = model.predict(source=image_path, verbose=False)
+        results = model.predict(source=image_path, imgsz=224,verbose=False)
         probs = results[0].probs
         
         # Top-1 预测
