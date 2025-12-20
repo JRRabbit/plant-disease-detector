@@ -502,7 +502,9 @@
         {% endif %}
         {% if 'user_id' in session %}
         <form class="comment-form" method="POST" action="{{ url_for('add_comment') }}">
+    <input type="hidden" name="history_id" value="{{ history_id }}">
     <input type="hidden" name="disease" value="{{ result.disease }}">
+
             <textarea name="content" placeholder="发表你的见解或经验"></textarea>
             <div class="actions">
                 <button type="submit" class="btn">发布评论</button>
