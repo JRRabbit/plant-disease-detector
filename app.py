@@ -892,7 +892,7 @@ def admin_reset_password(user_id):
 
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/detect',methods=['GET', 'POST'])
+@app.route('/detect',methods=['POST'])
 def detect():
     if 'user_id' not in session:
         flash('请先登录', 'warning')
@@ -1079,6 +1079,7 @@ def history_detail(id):
     
     return render_template('result.html',
                            result=result,
+                           history_id=id,
                            image_path='uploads/' + record.image_path,
                            comments=get_comments_by_disease(record.result))
 
