@@ -2,14 +2,17 @@ services:
   - type: web
     name: agri-disease-app
     env: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --preload --workers 2 --threads 2 --timeout 600 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --workers 1 --threads 8 --timeout 180 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13
-      - key: MODEL_PATH
-        value: best.pt
+        value: 3.10
       - key: SECRET_KEY
         generateValue: true
+      - key: MODEL_PATH
+        value: runs/classify/pest_disease_optimized2/weights/best.pt
+      # 若模型文件过大无法上传到GitHub，请设置 MODEL_URL
+      # - key: MODEL_URL
+      #   value: https://example.com/best.pt
